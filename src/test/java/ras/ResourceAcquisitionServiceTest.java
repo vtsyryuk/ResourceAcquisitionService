@@ -13,7 +13,7 @@ public class ResourceAcquisitionServiceTest {
     @Test
     @SuppressWarnings("static-method")
     public void testUnlockFailedForResourceThatNeverBeenLocked() {
-        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService(Time.getDefault());
+        SimpleResourceAcquisitionService<String> service = new SimpleResourceAcquisitionService<>(Time.getDefault());
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Unlock, "User1", "Item1");
         AcquiredResource resource = response.getResource();
 
@@ -26,7 +26,7 @@ public class ResourceAcquisitionServiceTest {
     @Test
     @SuppressWarnings("static-method")
     public void testLockCommandSucceeds() {
-        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService();
+        SimpleResourceAcquisitionService<String> service = new SimpleResourceAcquisitionService<>();
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
         assertEquals("User1", response.getResource().getUserName());
@@ -43,7 +43,7 @@ public class ResourceAcquisitionServiceTest {
     @Test
     @SuppressWarnings("static-method")
     public void testResourceCanBeLockedTwice() {
-        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService();
+        SimpleResourceAcquisitionService<String> service = new SimpleResourceAcquisitionService<>();
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
         assertEquals("User1", response.getResource().getUserName());
@@ -69,7 +69,7 @@ public class ResourceAcquisitionServiceTest {
     @SuppressWarnings("static-method")
     public void testCanLockAgainAfterTimeoutExpired() {
         final TestScheduler testScheduler = Schedulers.test();
-        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService(testScheduler);
+        SimpleResourceAcquisitionService<String> service = new SimpleResourceAcquisitionService<>(testScheduler);
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
         assertEquals("User1", response.getResource().getUserName());
@@ -111,7 +111,7 @@ public class ResourceAcquisitionServiceTest {
     @SuppressWarnings("static-method")
     public void testResourceCanBeLockedAgainAfterLockUnlock() {
         TestScheduler testScheduler = Schedulers.test();
-        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService(testScheduler);
+        SimpleResourceAcquisitionService<String> service = new SimpleResourceAcquisitionService<>(testScheduler);
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
         assertEquals("User1", response.getResource().getUserName());
@@ -134,7 +134,7 @@ public class ResourceAcquisitionServiceTest {
     @Test
     @SuppressWarnings("static-method")
     public void testCommitCanBeDoneOnlyByOwner() {
-        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService();
+        SimpleResourceAcquisitionService<String> service = new SimpleResourceAcquisitionService<>();
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
         assertEquals("User1", response.getResource().getUserName());

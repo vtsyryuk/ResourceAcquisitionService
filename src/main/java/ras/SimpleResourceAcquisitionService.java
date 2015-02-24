@@ -8,11 +8,11 @@ import rx.schedulers.Schedulers;
 
 import java.util.concurrent.ConcurrentSkipListMap;
 
-public class TextResourceAcquisitionService implements ResourceAcquisitionService<String> {
+public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionService<T> {
 
     private final Worker worker;
     private final Time unlockTimeout;
-    private final ConcurrentSkipListMap<String, AutoUnlockableResource> repository = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<T, AutoUnlockableResource> repository = new ConcurrentSkipListMap<>();
 
     private static final class AutoUnlockableResource {
 
@@ -37,15 +37,15 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
         }
     }
 
-    private interface ResourceAcquisitionCommandProcessor {
-        ResourceAcquisitionResponse commit(String userName, String resource);
+    private interface ResourceAcquisitionCommandProcessor<T> {
+        ResourceAcquisitionResponse commit(String userName, T resource);
     }
 
-    private final class ResourceLockCommandProcessor implements ResourceAcquisitionCommandProcessor {
+    private final class ResourceLockCommandProcessor implements ResourceAcquisitionCommandProcessor<T> {
 
         @SuppressWarnings("synthetic-access")
         @Override
-        public ResourceAcquisitionResponse commit(String userName, final String resource) {
+        public ResourceAcquisitionResponse commit(String userName, final T resource) {
 
             final AutoUnlockableResource existingItem = repository.get(resource);
             if (existingItem != null) {
@@ -78,11 +78,11 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
         }
     }
 
-    private final class ResourceUnlockCommandProcessor implements ResourceAcquisitionCommandProcessor {
+    private final class ResourceUnlockCommandProcessor implements ResourceAcquisitionCommandProcessor<T> {
 
         @SuppressWarnings("synthetic-access")
         @Override
-        public ResourceAcquisitionResponse commit(String userName, String resource) {
+        public ResourceAcquisitionResponse commit(String userName, T resource) {
             final AutoUnlockableResource existingItem = repository.get(resource);
             final AcquiredResource unlockedItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Unlocked, unlockTimeout);
             if (existingItem != null) {
@@ -111,25 +111,25 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
         throw new IndexOutOfBoundsException(String.format("%s command is not supported", command));
     }
 
-    public TextResourceAcquisitionService(final Scheduler scheduler, final Time unlockTimeout) {
+    public SimpleResourceAcquisitionService(final Scheduler scheduler, final Time unlockTimeout) {
         this.worker = scheduler.createWorker();
         this.unlockTimeout = unlockTimeout;
     }
 
-    public TextResourceAcquisitionService(final Scheduler scheduler) {
+    public SimpleResourceAcquisitionService(final Scheduler scheduler) {
         this(scheduler, Time.getDefault());
     }
 
-    public TextResourceAcquisitionService(final Time unlockTimeout) {
+    public SimpleResourceAcquisitionService(final Time unlockTimeout) {
         this(Schedulers.computation(), unlockTimeout);
     }
 
-    public TextResourceAcquisitionService() {
+    public SimpleResourceAcquisitionService() {
         this(Schedulers.computation(), Time.getDefault());
     }
 
     @Override
-    public ResourceAcquisitionResponse commit(ResourceAcquisitionCommand command, String userName, String resource) {
+    public ResourceAcquisitionResponse commit(ResourceAcquisitionCommand command, String userName, T resource) {
         final ResourceAcquisitionCommandProcessor commandProcessor = createCommandProcessor(command);
         return commandProcessor.commit(userName, resource);
     }

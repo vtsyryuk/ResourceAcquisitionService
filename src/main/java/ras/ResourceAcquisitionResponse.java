@@ -1,7 +1,24 @@
 package ras;
 
-public interface ResourceAcquisitionResponse {
-    ResourceAcquisitionCommandResult getCommitResult();
+public final class ResourceAcquisitionResponse {
+    
+    private final ResourceAcquisitionCommandResult commitResult;
+    private final AcquiredResource acquiredResource;
 
-    AcquiredResource getResource();
+    private ResourceAcquisitionResponse(ResourceAcquisitionCommandResult commitResult, AcquiredResource acquiredResource) {
+        this.commitResult = commitResult;
+        this.acquiredResource = acquiredResource;
+    }
+
+    public static ResourceAcquisitionResponse createNew(ResourceAcquisitionCommandResult commitResult, AcquiredResource acquiredResource) {
+        return new ResourceAcquisitionResponse(commitResult, acquiredResource);
+    }
+
+    public ResourceAcquisitionCommandResult getCommitResult() {
+        return commitResult;
+    }
+
+    public AcquiredResource getResource() {
+        return acquiredResource;
+    }
 }

@@ -1,160 +1,142 @@
 package ras;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
+import rx.Scheduler;
+import rx.Scheduler.Worker;
+import rx.Subscription;
+import rx.functions.Action0;
+import rx.schedulers.Schedulers;
 
 import java.util.concurrent.ConcurrentSkipListMap;
 
 public class TextResourceAcquisitionService implements ResourceAcquisitionService<String> {
 
-    private final ConcurrentSkipListMap<String, AcquiredResource<String>> cache = new ConcurrentSkipListMap<>();
+    private final Worker worker;
+    private final Time unlockTimeout;
+    private final ConcurrentSkipListMap<String, AutoUnlockableResource> repository = new ConcurrentSkipListMap<>();
+	
+    private static final class AutoUnlockableResource {
 
-    private static final class TextResourceAcquisitionResponse implements ResourceAcquisitionResponse {
+		private Subscription unlockSubscription;
+		private AcquiredResource acquiredResource;
+		
+		private AutoUnlockableResource(final Subscription unlockSubscription, final AcquiredResource acquiredResource) {
+        	this.unlockSubscription = unlockSubscription;
+			this.acquiredResource = acquiredResource;
+		}
 
-        private final ResourceAcquisitionCommandResult commitResult;
-        private final AcquiredResource<String> acquiredResource;
-
-        private TextResourceAcquisitionResponse(ResourceAcquisitionCommandResult commitResult, AcquiredResource<String> acquiredResource) {
-
-            this.commitResult = commitResult;
-            this.acquiredResource = acquiredResource;
+		public static AutoUnlockableResource createNew(final Subscription unlockSubscription, final AcquiredResource acquiredResource) {
+			return new AutoUnlockableResource(unlockSubscription, acquiredResource);
+		}
+		
+        public Subscription getUnlockSubscription() {
+        	return unlockSubscription;
         }
 
-        public static TextResourceAcquisitionResponse createNew(ResourceAcquisitionCommandResult commitResult, AcquiredResource<String> acquiredResource) {
-            return new TextResourceAcquisitionResponse(commitResult, acquiredResource);
+        public AcquiredResource getAcquiredResource() {
+        	return acquiredResource;
         }
+    }
+    
+	private interface ResourceAcquisitionCommandProcessor {
+		ResourceAcquisitionResponse commit(String userName, String resource);
+    }
 
-        @Override
-        public ResourceAcquisitionCommandResult getCommitResult() {
-            return commitResult;
-        }
+    private final class ResourceLockCommandProcessor implements ResourceAcquisitionCommandProcessor {
 
-        @Override
-        public AcquiredResource<String> getResource() {
-            return acquiredResource;
+		public ResourceLockCommandProcessor() {
+		}
+
+		@SuppressWarnings("synthetic-access")
+		@Override
+        public ResourceAcquisitionResponse commit(String userName, final String resource) {
+			
+			AutoUnlockableResource existingItem = repository.get(resource);
+			if (existingItem != null) {
+				final AcquiredResource existingResource = existingItem.getAcquiredResource();
+				if (!existingResource.getUserName().equalsIgnoreCase(userName)) {
+					return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockFailed, existingResource);
+				} else {
+					existingItem.getUnlockSubscription().unsubscribe();
+				}
+			}
+
+            final AcquiredResource newItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Locked, unlockTimeout);
+            Action0 unlockAction = new Action0() {
+				@Override
+				public void call() {
+					AcquiredResource lockedItem = repository.get(resource).getAcquiredResource();
+					// NOTE: reference equality required to make sure the same item will be removed
+					// in case of delayed execution of unsubscribe
+					if (newItem == lockedItem) {
+						repository.remove(resource);
+					}
+				}
+			};
+
+			Subscription unlockSubscription = worker.schedule(unlockAction, unlockTimeout.getDelayTime(), unlockTimeout.getUnit());
+			AutoUnlockableResource unlockableResource = AutoUnlockableResource.createNew(unlockSubscription, newItem);
+			repository.put(resource, unlockableResource);
+            
+			return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockSucceeded, newItem);
         }
     }
 
-    private static final class AcquiredTextResource implements AcquiredResource<String>, Comparable<AcquiredTextResource> {
+    private final class ResourceUnlockCommandProcessor implements ResourceAcquisitionCommandProcessor {
 
-        private final String userName;
-        private final String resource;
-        private final ResourceAcquisitionState state;
-        private final DateTime timestamp;
+        public ResourceUnlockCommandProcessor() {
+		}
 
-        private AcquiredTextResource(String userName, String resource, ResourceAcquisitionState state, DateTime timestamp) {
-            this.userName = userName;
-            this.resource = resource;
-            this.state = state;
-            this.timestamp = timestamp;
-        }
-
-        public static AcquiredResource<String> createNew(String userName, String resource, ResourceAcquisitionState state) {
-            return new AcquiredTextResource(userName, resource, state, DateTime.now(DateTimeZone.UTC));
-        }
-
-        @Override
-        public String getUserName() {
-            return userName;
-        }
-
-        @Override
-        public String getValue() {
-            return resource;
-        }
-
-        @Override
-        public ResourceAcquisitionState getState() {
-            return state;
-        }
-
-        @Override
-        public DateTime getUtcTimeStamp() {
-            return timestamp;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-
-            AcquiredTextResource that = (AcquiredTextResource) o;
-            return resource.equals(that.resource) && (state == that.state) && userName.equals(that.userName);
-
-        }
-
-        @Override
-        public int hashCode() {
-            int result = userName.hashCode();
-            result = 31 * result + resource.hashCode();
-            result = 31 * result + state.hashCode();
-            return result;
-        }
-
-        @Override
-        public int compareTo(AcquiredTextResource o) {
-            int cmp = this.userName.compareToIgnoreCase(o.getUserName());
-            return cmp == 0 ? this.state.compareTo(o.getState()) : cmp;
-        }
-    }
-
-    private interface ResourceAcquisitionCommandExecutor {
-
-        ResourceAcquisitionResponse commit(String userName, String resource);
-    }
-
-    private static final class ResourceLockExecutor implements ResourceAcquisitionCommandExecutor {
-
-        private final ConcurrentSkipListMap<String, AcquiredResource<String>> repository;
-
-        public ResourceLockExecutor(ConcurrentSkipListMap<String, AcquiredResource<String>> repository) {
-            this.repository = repository;
-        }
-
-        @Override
+		@SuppressWarnings("synthetic-access")
+		@Override
         public ResourceAcquisitionResponse commit(String userName, String resource) {
-            AcquiredResource<String> newItem = AcquiredTextResource.createNew(userName, resource, ResourceAcquisitionState.Locked);
-            AcquiredResource<String> oldItem = repository.putIfAbsent(resource, newItem);
-            return oldItem == null ?
-                    TextResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockSucceeded, newItem) :
-                    TextResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockFailed, oldItem);
+			AutoUnlockableResource existingItem = repository.get(resource);
+			AcquiredResource unlockedItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Unlocked, unlockTimeout);
+			if (existingItem != null) {
+				final AcquiredResource acquiredResource = existingItem.getAcquiredResource();
+                if (!acquiredResource.getUserName().equalsIgnoreCase(userName)) {
+					return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockFailed, acquiredResource);
+				}
+				
+				existingItem.getUnlockSubscription().unsubscribe();
+				repository.remove(resource);
+				return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockSucceeded, unlockedItem);
+			}
+			return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockFailed, unlockedItem);
         }
     }
 
-    private static final class ResourceUnlockExecutor implements ResourceAcquisitionCommandExecutor {
-
-        private final ConcurrentSkipListMap<String, AcquiredResource<String>> repository;
-
-        private ResourceUnlockExecutor(ConcurrentSkipListMap<String, AcquiredResource<String>> repository) {
-            this.repository = repository;
-        }
-
-        @Override
-        public ResourceAcquisitionResponse commit(String userName, String resource) {
-            AcquiredResource<String> lockedItem = AcquiredTextResource.createNew(userName, resource, ResourceAcquisitionState.Locked);
-            AcquiredResource<String> unlockedItem = AcquiredTextResource.createNew(userName, resource, ResourceAcquisitionState.Unlocked);
-            if (!repository.containsKey(resource)) {
-                return TextResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockFailed, unlockedItem);
-            }
-            return repository.remove(resource, lockedItem) ?
-                    TextResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockSucceeded, unlockedItem) :
-                    TextResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockFailed, repository.get(resource));
-        }
-    }
-
-    private static ResourceAcquisitionCommandExecutor createCommandExecutor(ResourceAcquisitionCommand command, ConcurrentSkipListMap<String, AcquiredResource<String>> cache) {
+    private ResourceAcquisitionCommandProcessor createCommandProcessor(ResourceAcquisitionCommand command) {
         switch (command) {
             case Lock:
-                return new ResourceLockExecutor(cache);
+                return new ResourceLockCommandProcessor();
             case Unlock:
-                return new ResourceUnlockExecutor(cache);
+                return new ResourceUnlockCommandProcessor();
+			default:
+				break;
         }
         throw new IndexOutOfBoundsException(String.format("%s command is not supported", command));
     }
 
+    public TextResourceAcquisitionService(final Scheduler scheduler, final Time unlockTimeout) {
+		this.worker = scheduler.createWorker();
+		this.unlockTimeout =  unlockTimeout;
+	}
+    
+    public TextResourceAcquisitionService(final Scheduler scheduler) {
+    	this(scheduler, Time.getDefault());
+	}
+
+    public TextResourceAcquisitionService(final Time unlockTimeout) {
+    	this(Schedulers.computation(), unlockTimeout);
+	}
+
+    public TextResourceAcquisitionService() {
+    	this(Schedulers.computation(), Time.getDefault());
+	}
+
     @Override
     public ResourceAcquisitionResponse commit(ResourceAcquisitionCommand command, String userName, String resource) {
-        ResourceAcquisitionCommandExecutor commandExecutor = createCommandExecutor(command, cache);
-        return commandExecutor.commit(userName, resource);
+        ResourceAcquisitionCommandProcessor commandProcessor = createCommandProcessor(command);
+        return commandProcessor.commit(userName, resource);
     }
 }

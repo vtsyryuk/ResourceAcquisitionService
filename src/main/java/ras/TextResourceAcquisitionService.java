@@ -43,9 +43,6 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
 
     private final class ResourceLockCommandProcessor implements ResourceAcquisitionCommandProcessor {
 
-        public ResourceLockCommandProcessor() {
-        }
-
         @SuppressWarnings("synthetic-access")
         @Override
         public ResourceAcquisitionResponse commit(String userName, final String resource) {
@@ -82,9 +79,6 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
     }
 
     private final class ResourceUnlockCommandProcessor implements ResourceAcquisitionCommandProcessor {
-
-        public ResourceUnlockCommandProcessor() {
-        }
 
         @SuppressWarnings("synthetic-access")
         @Override

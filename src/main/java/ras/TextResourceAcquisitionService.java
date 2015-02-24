@@ -16,8 +16,8 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
 
     private static final class AutoUnlockableResource {
 
-        private Subscription unlockSubscription;
-        private AcquiredResource acquiredResource;
+        private final Subscription unlockSubscription;
+        private final AcquiredResource acquiredResource;
 
         private AutoUnlockableResource(final Subscription unlockSubscription, final AcquiredResource acquiredResource) {
             this.unlockSubscription = unlockSubscription;
@@ -47,7 +47,7 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
         @Override
         public ResourceAcquisitionResponse commit(String userName, final String resource) {
 
-            AutoUnlockableResource existingItem = repository.get(resource);
+            final AutoUnlockableResource existingItem = repository.get(resource);
             if (existingItem != null) {
                 final AcquiredResource existingResource = existingItem.getAcquiredResource();
                 if (!existingResource.getUserName().equalsIgnoreCase(userName)) {
@@ -70,8 +70,8 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
                 }
             };
 
-            Subscription unlockSubscription = worker.schedule(unlockAction, unlockTimeout.getDelayTime(), unlockTimeout.getUnit());
-            AutoUnlockableResource unlockableResource = AutoUnlockableResource.createNew(unlockSubscription, newItem);
+            final Subscription unlockSubscription = worker.schedule(unlockAction, unlockTimeout.getDelayTime(), unlockTimeout.getUnit());
+            final AutoUnlockableResource unlockableResource = AutoUnlockableResource.createNew(unlockSubscription, newItem);
             repository.put(resource, unlockableResource);
 
             return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockSucceeded, newItem);
@@ -83,8 +83,8 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
         @SuppressWarnings("synthetic-access")
         @Override
         public ResourceAcquisitionResponse commit(String userName, String resource) {
-            AutoUnlockableResource existingItem = repository.get(resource);
-            AcquiredResource unlockedItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Unlocked, unlockTimeout);
+            final AutoUnlockableResource existingItem = repository.get(resource);
+            final AcquiredResource unlockedItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Unlocked, unlockTimeout);
             if (existingItem != null) {
                 final AcquiredResource acquiredResource = existingItem.getAcquiredResource();
                 if (!acquiredResource.getUserName().equalsIgnoreCase(userName)) {
@@ -130,7 +130,7 @@ public class TextResourceAcquisitionService implements ResourceAcquisitionServic
 
     @Override
     public ResourceAcquisitionResponse commit(ResourceAcquisitionCommand command, String userName, String resource) {
-        ResourceAcquisitionCommandProcessor commandProcessor = createCommandProcessor(command);
+        final ResourceAcquisitionCommandProcessor commandProcessor = createCommandProcessor(command);
         return commandProcessor.commit(userName, resource);
     }
 }

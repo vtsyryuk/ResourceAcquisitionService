@@ -16,7 +16,7 @@ public final class AcquiredResource implements Comparable<AcquiredResource> {
         this.userName = userName;
         this.state = state;
         this.timestamp = timestamp;
-        this.timeout = timeout;        
+        this.timeout = timeout;
     }
 
     public static AcquiredResource createNew(String userName, ResourceAcquisitionState state, Time stateTimeout) {
@@ -39,7 +39,7 @@ public final class AcquiredResource implements Comparable<AcquiredResource> {
     public Time getStateTimeout() {
         return timeout;
     }
-    
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

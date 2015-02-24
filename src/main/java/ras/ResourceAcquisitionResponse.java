@@ -1,7 +1,7 @@
 package ras;
 
 public final class ResourceAcquisitionResponse {
-    
+
     private final ResourceAcquisitionCommandResult commitResult;
     private final AcquiredResource acquiredResource;
 

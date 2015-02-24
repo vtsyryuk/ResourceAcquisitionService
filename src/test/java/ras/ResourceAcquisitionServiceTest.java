@@ -35,7 +35,7 @@ public class ResourceAcquisitionServiceTest {
 
         response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item2");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
-		assertEquals("User1", response.getResource().getUserName());
+        assertEquals("User1", response.getResource().getUserName());
         assertEquals(ResourceAcquisitionState.Locked, response.getResource().getState());
         assertEquals(Time.getDefault(), response.getResource().getStateTimeout());
     }
@@ -53,7 +53,7 @@ public class ResourceAcquisitionServiceTest {
         response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         Time u1LockTimestamp = response.getResource().getUtcTimeStamp();
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
-		assertEquals("User1", response.getResource().getUserName());
+        assertEquals("User1", response.getResource().getUserName());
         assertEquals(ResourceAcquisitionState.Locked, response.getResource().getState());
         assertEquals(Time.getDefault(), response.getResource().getStateTimeout());
 
@@ -69,10 +69,10 @@ public class ResourceAcquisitionServiceTest {
     @SuppressWarnings("static-method")
     public void testCanLockAgainAfterTimeoutExpired() {
         final TestScheduler testScheduler = Schedulers.test();
-		ResourceAcquisitionService<String> service = new TextResourceAcquisitionService(testScheduler);
+        ResourceAcquisitionService<String> service = new TextResourceAcquisitionService(testScheduler);
         ResourceAcquisitionResponse response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
-		assertEquals("User1", response.getResource().getUserName());
+        assertEquals("User1", response.getResource().getUserName());
         assertEquals(ResourceAcquisitionState.Locked, response.getResource().getState());
         assertEquals(Time.getDefault(), response.getResource().getStateTimeout());
 
@@ -80,7 +80,7 @@ public class ResourceAcquisitionServiceTest {
 
         response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockSucceeded, response.getCommitResult());
-		assertEquals("User1", response.getResource().getUserName());
+        assertEquals("User1", response.getResource().getUserName());
         assertEquals(ResourceAcquisitionState.Locked, response.getResource().getState());
         assertEquals(Time.getDefault(), response.getResource().getStateTimeout());
 
@@ -88,7 +88,7 @@ public class ResourceAcquisitionServiceTest {
 
         response = service.commit(ResourceAcquisitionCommand.Lock, "User2", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockFailed, response.getCommitResult());
-		assertEquals("User1", response.getResource().getUserName());
+        assertEquals("User1", response.getResource().getUserName());
         assertEquals(ResourceAcquisitionState.Locked, response.getResource().getState());
         assertEquals(Time.getDefault(), response.getResource().getStateTimeout());
 
@@ -102,7 +102,7 @@ public class ResourceAcquisitionServiceTest {
 
         response = service.commit(ResourceAcquisitionCommand.Lock, "User1", "Item1");
         assertEquals(ResourceAcquisitionCommandResult.LockFailed, response.getCommitResult());
-		assertEquals("User2", response.getResource().getUserName());
+        assertEquals("User2", response.getResource().getUserName());
         assertEquals(ResourceAcquisitionState.Locked, response.getResource().getState());
         assertEquals(Time.getDefault(), response.getResource().getStateTimeout());
     }

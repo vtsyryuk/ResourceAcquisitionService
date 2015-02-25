@@ -5,20 +5,17 @@ public final class ResourceAcquisitionResponse {
     private final ResourceAcquisitionCommandResult commitResult;
     private final AcquiredResource acquiredResource;
 
-    private ResourceAcquisitionResponse(ResourceAcquisitionCommandResult commitResult, AcquiredResource acquiredResource) {
+    public ResourceAcquisitionResponse(final ResourceAcquisitionCommandResult commitResult,
+                                       final AcquiredResource acquiredResource) {
         this.commitResult = commitResult;
         this.acquiredResource = acquiredResource;
     }
 
-    public static ResourceAcquisitionResponse createNew(ResourceAcquisitionCommandResult commitResult, AcquiredResource acquiredResource) {
-        return new ResourceAcquisitionResponse(commitResult, acquiredResource);
-    }
-
-    public ResourceAcquisitionCommandResult getCommitResult() {
+    public final ResourceAcquisitionCommandResult getCommitResult() {
         return commitResult;
     }
 
-    public AcquiredResource getResource() {
+    public final AcquiredResource getResource() {
         return acquiredResource;
     }
 }

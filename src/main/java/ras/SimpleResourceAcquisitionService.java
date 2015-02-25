@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionService<T> {
 
     private final Worker worker;
-    private final Time unlockTimeout;
+    private final TimeSpan unlockTimeout;
     private final ConcurrentSkipListMap<T, AutoUnlockableResource> repository = new ConcurrentSkipListMap<>();
 
     private static final class AutoUnlockableResource {
@@ -19,13 +19,9 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
         private final Subscription unlockSubscription;
         private final AcquiredResource acquiredResource;
 
-        private AutoUnlockableResource(final Subscription unlockSubscription, final AcquiredResource acquiredResource) {
+        public AutoUnlockableResource(final Subscription unlockSubscription, final AcquiredResource acquiredResource) {
             this.unlockSubscription = unlockSubscription;
             this.acquiredResource = acquiredResource;
-        }
-
-        public static AutoUnlockableResource createNew(final Subscription unlockSubscription, final AcquiredResource acquiredResource) {
-            return new AutoUnlockableResource(unlockSubscription, acquiredResource);
         }
 
         public Subscription getUnlockSubscription() {
@@ -51,7 +47,7 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
             if (existingItem != null) {
                 final AcquiredResource existingResource = existingItem.getAcquiredResource();
                 if (!existingResource.getUserName().equalsIgnoreCase(userName)) {
-                    return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockFailed, existingResource);
+                    return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.LockFailed, existingResource);
                 } else {
                     existingItem.getUnlockSubscription().unsubscribe();
                 }
@@ -70,11 +66,11 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
                 }
             };
 
-            final Subscription unlockSubscription = worker.schedule(unlockAction, unlockTimeout.getDelayTime(), unlockTimeout.getUnit());
-            final AutoUnlockableResource unlockableResource = AutoUnlockableResource.createNew(unlockSubscription, newItem);
+            final Subscription unlockSubscription = worker.schedule(unlockAction, unlockTimeout.getInterval(), unlockTimeout.getUnit());
+            final AutoUnlockableResource unlockableResource = new AutoUnlockableResource(unlockSubscription, newItem);
             repository.put(resource, unlockableResource);
 
-            return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.LockSucceeded, newItem);
+            return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.LockSucceeded, newItem);
         }
     }
 
@@ -88,18 +84,18 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
             if (existingItem != null) {
                 final AcquiredResource acquiredResource = existingItem.getAcquiredResource();
                 if (!acquiredResource.getUserName().equalsIgnoreCase(userName)) {
-                    return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockFailed, acquiredResource);
+                    return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UnlockFailed, acquiredResource);
                 }
 
                 existingItem.getUnlockSubscription().unsubscribe();
                 repository.remove(resource);
-                return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockSucceeded, unlockedItem);
+                return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UnlockSucceeded, unlockedItem);
             }
-            return ResourceAcquisitionResponse.createNew(ResourceAcquisitionCommandResult.UnlockFailed, unlockedItem);
+            return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UnlockFailed, unlockedItem);
         }
     }
 
-    private ResourceAcquisitionCommandProcessor createCommandProcessor(ResourceAcquisitionCommand command) {
+    private ResourceAcquisitionCommandProcessor<T> createCommandProcessor(ResourceAcquisitionCommand command) {
         switch (command) {
             case Lock:
                 return new ResourceLockCommandProcessor();
@@ -111,26 +107,26 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
         throw new IndexOutOfBoundsException(String.format("%s command is not supported", command));
     }
 
-    public SimpleResourceAcquisitionService(final Scheduler scheduler, final Time unlockTimeout) {
+    public SimpleResourceAcquisitionService(final Scheduler scheduler, final TimeSpan unlockTimeout) {
         this.worker = scheduler.createWorker();
         this.unlockTimeout = unlockTimeout;
     }
 
     public SimpleResourceAcquisitionService(final Scheduler scheduler) {
-        this(scheduler, Time.getDefault());
+        this(scheduler, TimeSpan.Default);
     }
 
-    public SimpleResourceAcquisitionService(final Time unlockTimeout) {
+    public SimpleResourceAcquisitionService(final TimeSpan unlockTimeout) {
         this(Schedulers.computation(), unlockTimeout);
     }
 
     public SimpleResourceAcquisitionService() {
-        this(Schedulers.computation(), Time.getDefault());
+        this(Schedulers.computation(), TimeSpan.Default);
     }
 
     @Override
     public ResourceAcquisitionResponse commit(ResourceAcquisitionCommand command, String userName, T resource) {
-        final ResourceAcquisitionCommandProcessor commandProcessor = createCommandProcessor(command);
+        final ResourceAcquisitionCommandProcessor<T> commandProcessor = createCommandProcessor(command);
         return commandProcessor.commit(userName, resource);
     }
 }

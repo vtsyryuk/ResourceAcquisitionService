@@ -1,9 +1,10 @@
 package ras;
 
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 public final class AcquiredResource implements Comparable<AcquiredResource> {
@@ -17,16 +18,23 @@ public final class AcquiredResource implements Comparable<AcquiredResource> {
                              final ResourceAcquisitionState state,
                              final TimeSpan timeout,
                              final TimeSpan timestamp) {
-        this.userName = userName;
-        this.state = state;
-        this.timestamp = timestamp;
-        this.timeout = timeout;
+        this.userName = Objects.requireNonNull(userName, "userName");
+        this.state = Objects.requireNonNull(state, "state");
+        this.timeout = Objects.requireNonNull(timeout, "timeout");
+        this.timestamp = Objects.requireNonNull(timestamp, "timestamp");
     }
 
     public static AcquiredResource createNew(final String userName,
                                              final ResourceAcquisitionState state,
                                              final TimeSpan stateTimeout) {
-        final TimeSpan timestamp = new TimeSpan(DateTime.now(DateTimeZone.UTC).getMillis(), TimeUnit.MILLISECONDS);
+        return createNew(userName, state, stateTimeout, Clock.systemUTC());
+    }
+
+    static AcquiredResource createNew(final String userName,
+                                      final ResourceAcquisitionState state,
+                                      final TimeSpan stateTimeout,
+                                      final Clock clock) {
+        final TimeSpan timestamp = new TimeSpan(clock.millis(), TimeUnit.MILLISECONDS);
         return new AcquiredResource(userName, state, stateTimeout, timestamp);
     }
 
@@ -48,28 +56,24 @@ public final class AcquiredResource implements Comparable<AcquiredResource> {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        AcquiredResource that = (AcquiredResource) o;
-        return (state == that.state) && (userName != null ? userName.equals(that.userName) : that.userName == null);
+        return this == o
+                || (o instanceof AcquiredResource that
+                && state == that.state
+                && userName.equals(that.userName));
     }
 
     @Override
     public int hashCode() {
-        int result = userName != null ? userName.hashCode() : 0;
-        result = 31 * result + (state != null ? state.hashCode() : 0);
-        return result;
+        return Objects.hash(userName, state);
     }
 
     @Override
     public String toString() {
-        if (state != null && timestamp != null) {
-            long instant = timestamp.getUnit().toMillis(timestamp.getInterval());
-            String printedTimestamp = DateTimeFormat.shortDateTime().withZoneUTC().print(instant);
-            return String.format("%s %s at %s", userName, state.name(), printedTimestamp);
-        }
-        return super.toString();
+        long instant = timestamp.getUnit().toMillis(timestamp.getInterval());
+        String printedTimestamp = DateTimeFormatter.ISO_OFFSET_DATE_TIME
+                .withZone(ZoneOffset.UTC)
+                .format(Instant.ofEpochMilli(instant));
+        return String.format("%s %s at %s", userName, state.name(), printedTimestamp);
     }
 
     @Override

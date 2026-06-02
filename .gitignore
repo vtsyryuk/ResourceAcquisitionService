@@ -41,3 +41,16 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Java / Gradle
+build/
+target/
+.gradle/
+*.class
+
+# IDEs
+.idea/
+.classpath
+.project
+.settings/
+*.iml

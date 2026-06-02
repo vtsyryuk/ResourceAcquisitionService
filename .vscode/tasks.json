@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Gradle: clean build",
+      "type": "shell",
+      "command": "./gradlew clean build",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Gradle: jacoco test report",
+      "type": "shell",
+      "command": "./gradlew jacocoTestReport",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

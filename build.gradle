@@ -1,0 +1,159 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'jacoco'
+    id 'maven-publish'
+}
+
+group = 'vt.ras'
+version = providers.gradleProperty('releaseVersion').orElse('2.0.0').get()
+
+def configuredJavaVersion = providers.gradleProperty('javaVersion').map { Integer.parseInt(it) }
+def configuredCoverageMinimum = providers.gradleProperty('coverageMinimum').map { new BigDecimal(it) }
+def configuredJavaCompatibility = configuredJavaVersion.map { JavaVersion.toVersion(it.toString()) }
+
+base {
+    archivesName = 'rasjava'
+}
+
+java {
+    toolchain {
+        languageVersion = configuredJavaVersion.map { JavaLanguageVersion.of(it) }.get()
+    }
+    sourceCompatibility = configuredJavaCompatibility.get()
+    targetCompatibility = configuredJavaCompatibility.get()
+    withSourcesJar()
+    withJavadocJar()
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = configuredJavaVersion.get()
+    options.encoding = 'UTF-8'
+}
+
+eclipse {
+    jdt {
+        sourceCompatibility = configuredJavaCompatibility.get()
+        targetCompatibility = configuredJavaCompatibility.get()
+        javaRuntimeName = "JavaSE-${configuredJavaVersion.get()}"
+    }
+    classpath {
+        downloadSources = true
+        downloadJavadoc = true
+        file {
+            whenMerged { classpath ->
+                classpath.entries.removeAll { it.kind == 'lib' }
+            }
+        }
+    }
+}
+
+dependencies {
+    api libs.opentelemetry.api
+    api libs.rxjava
+
+    testImplementation platform(libs.junit.bom)
+    testImplementation libs.junit.jupiter
+    testImplementation libs.opentelemetry.sdk.metrics
+    testImplementation libs.opentelemetry.sdk.testing
+    testRuntimeOnly libs.junit.platform.launcher
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            ['INSTRUCTION', 'BRANCH', 'LINE', 'METHOD', 'CLASS'].each { coverageCounter ->
+                limit {
+                    counter = coverageCounter
+                    value = 'COVEREDRATIO'
+                    minimum = configuredCoverageMinimum.get()
+                }
+            }
+        }
+    }
+}
+
+check {
+    dependsOn jacocoTestCoverageVerification
+}
+
+tasks.withType(PublishToMavenRepository).configureEach {
+    dependsOn tasks.named('check')
+}
+
+tasks.register('publishJarToMaven') {
+    group = 'publishing'
+    description = 'Runs verification, builds the Java artifacts, and publishes them to the configured Maven repository.'
+    dependsOn tasks.named('publishMavenJavaPublicationToGitHubPackagesRepository')
+}
+
+jar {
+    archiveBaseName = 'rasjava'
+    manifest {
+        attributes(
+                'Bundle-Name': 'rasjava',
+                'Bundle-SymbolicName': 'ras',
+                'Bundle-Version': project.version.toString(),
+                'Automatic-Module-Name': 'ras'
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifactId = 'rasjava'
+            pom {
+                name = 'ResourceAcquisitionService'
+                description = 'Small Java helper library for lock-style resource acquisition with automatic expiry.'
+                url = 'https://github.com/vtsyryuk/ResourceAcquisitionService'
+                licenses {
+                    license {
+                        name = 'BSD 3-Clause License'
+                        url = 'https://opensource.org/license/bsd-3-clause'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/vtsyryuk/ResourceAcquisitionService.git'
+                    developerConnection = 'scm:git:ssh://git@github.com:vtsyryuk/ResourceAcquisitionService.git'
+                    url = 'https://github.com/vtsyryuk/ResourceAcquisitionService'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = 'GitHubPackages'
+            url = uri('https://maven.pkg.github.com/vtsyryuk/ResourceAcquisitionService')
+            credentials {
+                username = providers.gradleProperty('gpr.user')
+                        .orElse(providers.environmentVariable('GITHUB_ACTOR'))
+                        .orElse('')
+                        .get()
+                password = providers.gradleProperty('gpr.key')
+                        .orElse(providers.environmentVariable('GITHUB_TOKEN'))
+                        .orElse('')
+                        .get()
+            }
+        }
+    }
+}

@@ -10,6 +10,16 @@
 
 Small Java helper library for lock-style resource acquisition with automatic expiry. Version `2.0.0` targets JDK 25, RxJava 3, JUnit 6, Gradle, and OpenTelemetry metrics.
 
+<!-- ci-status:start -->
+## CI Status
+
+| Build | Line Coverage | Branch Coverage | Instruction Coverage | Workflow Run |
+| --- | ---: | ---: | ---: | --- |
+| ✅ Passing | 100.00% | 100.00% | 100.00% | [#35](https://github.com/vtsyryuk/ResourceAcquisitionService/actions/runs/31697038999) |
+
+Last updated from `master` at 2026-08-13 11:47 UTC for commit `9dac716`.
+<!-- ci-status:end -->
+
 ## Build
 
 This project uses Gradle 9.5.1 and JDK 25 by default. Dependency versions live in `gradle/libs.versions.toml`; build knobs such as `javaVersion` and `coverageMinimum` live in `gradle.properties` and can be overridden with `-P`.

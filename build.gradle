@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+    id 'application'
     id 'eclipse'
     id 'jacoco'
     id 'maven-publish'
@@ -25,6 +26,50 @@ java {
     targetCompatibility = configuredJavaCompatibility.get()
     withSourcesJar()
     withJavadocJar()
+}
+
+// Keep the runnable demonstration separate from the published library and its coverage gate.
+sourceSets {
+    demo {
+        compileClasspath += sourceSets.main.output + configurations.runtimeClasspath
+        runtimeClasspath += sourceSets.main.output + configurations.runtimeClasspath
+    }
+    test {
+        compileClasspath += sourceSets.demo.output
+        runtimeClasspath += sourceSets.demo.output
+    }
+}
+
+application {
+    mainClass = 'ras.demo.ResourceAcquisitionDemo'
+}
+
+tasks.named('run') {
+    dependsOn tasks.named('demoClasses')
+    classpath = sourceSets.demo.runtimeClasspath
+}
+
+tasks.named('test') {
+    dependsOn tasks.named('demoClasses')
+}
+
+tasks.register('demoJar', Jar) {
+    dependsOn tasks.named('demoClasses')
+    archiveClassifier = 'demo'
+    from sourceSets.demo.output
+}
+
+tasks.named('startScripts') {
+    dependsOn tasks.named('demoJar')
+    classpath = files(tasks.named('demoJar'), tasks.named('jar')) + configurations.runtimeClasspath
+}
+
+distributions {
+    main {
+        contents {
+            from(tasks.named('demoJar')) { into 'lib' }
+        }
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
@@ -165,6 +210,8 @@ sonar {
                 .orElse('vtsyryuk_ResourceAcquisitionService').get()
         property 'sonar.organization', providers.environmentVariable('SONAR_ORGANIZATION')
                 .orElse('vtsyryuk').get()
+        property 'sonar.tests', 'src/test/java,tests/e2e'
+        property 'sonar.exclusions', 'src/demo/**,tests/e2e/**,playwright.config.mjs'
         property 'sonar.coverage.jacoco.xmlReportPaths',
                 layout.buildDirectory.file('reports/jacoco/test/jacocoTestReport.xml').get().asFile.path
     }

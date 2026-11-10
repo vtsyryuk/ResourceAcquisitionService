@@ -1,0 +1,62 @@
+name: Cloud E2E
+on:
+  deployment_status:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Deployed demo URL; alternatively configure CLOUD_BASE_URL
+        type: string
+        default: ''
+permissions: {}
+jobs:
+  cloud-ui:
+    name: Verify deployed demo ownership and expiry
+    if: (github.event_name != 'deployment_status' || github.event.deployment_status.state == 'success') && (github.event_name != 'schedule' || vars.CLOUD_BASE_URL != '')
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ inputs.base_url || vars.CLOUD_BASE_URL || github.event.deployment_status.environment_url }}
+    steps:
+      - name: Require a deployed demo URL
+        run: |
+          if [[ ! "$PLAYWRIGHT_BASE_URL" =~ ^https?:// ]]; then
+            echo '::error::Deploy render.yaml, then set CLOUD_BASE_URL or supply base_url. No cloud test has run.'
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked browser tests
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - name: Install Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Wait for demo readiness, including a cold start
+        run: |
+          deadline=$((SECONDS + 300))
+          until curl --fail --silent --show-error --max-time 15 "${PLAYWRIGHT_BASE_URL%/}/health" | jq -e '.status == "ok"'; do
+            if (( SECONDS >= deadline )); then
+              echo '::error::The deployed demo did not become ready within five minutes.'
+              exit 1
+            fi
+            sleep 5
+          done
+      - name: Run cloud browser E2E
+        run: npm run test:e2e
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: browser-e2e-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

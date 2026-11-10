@@ -54,3 +54,8 @@ target/
 .project
 .settings/
 *.iml
+
+# Browser verification artifacts
+node_modules/
+playwright-report/
+test-results/

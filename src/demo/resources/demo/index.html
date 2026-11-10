@@ -1,0 +1,5 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ResourceAcquisitionService demo</title><link rel="stylesheet" href="/demo.css"><script src="/demo.js" defer></script></head>
+<body><main><h1>ResourceAcquisitionService demo</h1><p>Try two users competing for the same resource. Locks expire automatically; this demo uses in-memory state and simulated users, without authentication.</p>
+<form id="commands"><label>User <select id="user"><option>alice</option><option>bob</option></select></label><label>Resource <input id="resource" value="feed/prices" required pattern="[a-z][a-z0-9/_-]{0,63}" maxlength="64"></label><button type="submit" value="lock">Acquire lock</button><button type="submit" value="unlock">Release lock</button></form>
+<p id="status" role="status">Ready. Select a user and acquire a lock.</p><pre id="result" aria-label="Command result"></pre><p>Use a different resource label to avoid interfering with another visitor. There is no persistent storage or production access control.</p></main></body></html>

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: resource-acquisition-service-demo
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: DEMO_TTL_MILLIS
+        value: 10000

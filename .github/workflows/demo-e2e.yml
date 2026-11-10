@@ -32,7 +32,14 @@ jobs:
       - name: Start the actual demo container
         run: |
           docker run --detach --name acquisition-demo --publish 8080:8080 resource-acquisition-demo:ci
-          curl --fail --silent --show-error --max-time 5 --retry 30 --retry-connrefused --retry-delay 1 "$PLAYWRIGHT_BASE_URL/health" | jq -e '.status == "ok"'
+          deadline=$((SECONDS + 120))
+          until curl --fail --silent --show-error --max-time 5 "$PLAYWRIGHT_BASE_URL/health" | jq -e '.status == "ok"'; do
+            if (( SECONDS >= deadline )); then
+              echo '::error::The demo container did not become healthy within two minutes.'
+              exit 1
+            fi
+            sleep 2
+          done
       - name: Run browser E2E
         run: npm run test:e2e
       - name: Show demo container logs

@@ -44,11 +44,11 @@ public final class ResourceAcquisitionMetrics {
     }
 
     public void recordCommand(final ResourceAcquisitionCommand command) {
-        commandCounter.add(1, Attributes.of(COMMAND_ATTRIBUTE, command.name()));
+        commandCounter.add(1, Attributes.of(COMMAND_ATTRIBUTE, command.getValue()));
     }
 
     public void recordResult(final ResourceAcquisitionCommandResult result) {
-        resultCounter.add(1, Attributes.of(RESULT_ATTRIBUTE, result.name()));
+        resultCounter.add(1, Attributes.of(RESULT_ATTRIBUTE, result.getValue()));
     }
 
     public void recordLockAcquired() {

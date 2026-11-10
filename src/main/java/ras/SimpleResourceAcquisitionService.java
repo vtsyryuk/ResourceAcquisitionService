@@ -81,21 +81,18 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
             if (existingItem != null) {
                 final AcquiredResource existingResource = existingItem.getAcquiredResource();
                 if (!existingResource.getUserName().equalsIgnoreCase(userName)) {
-                    return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.LockFailed, existingResource);
+                    return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.LOCK_FAILED, existingResource);
                 }
                 existingItem.cancelUnlock();
             }
 
-            final AcquiredResource newItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Locked, unlockTimeout, clock);
-            final Cancellable unlockSubscription = scheduler.schedule(new Runnable() {
-                @Override
-                public void run() {
-                    synchronized (SimpleResourceAcquisitionService.this) {
-                        AutoUnlockableResource lockedItem = repository.get(resource);
-                        if (lockedItem != null && newItem == lockedItem.getAcquiredResource()) {
-                            repository.remove(resource);
-                            metrics.recordLockReleased();
-                        }
+            final AcquiredResource newItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.LOCKED, unlockTimeout, clock);
+            final Cancellable unlockSubscription = scheduler.schedule(() -> {
+                synchronized (SimpleResourceAcquisitionService.this) {
+                    AutoUnlockableResource lockedItem = repository.get(resource);
+                    if (lockedItem != null && newItem == lockedItem.getAcquiredResource()) {
+                        repository.remove(resource);
+                        metrics.recordLockReleased();
                     }
                 }
             }, unlockTimeout);
@@ -105,7 +102,7 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
             if (existingItem == null) {
                 metrics.recordLockAcquired();
             }
-            return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.LockSucceeded, newItem);
+            return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.LOCK_SUCCEEDED, newItem);
         }
     }
 
@@ -114,26 +111,26 @@ public class SimpleResourceAcquisitionService<T> implements ResourceAcquisitionS
         @Override
         public ResourceAcquisitionResponse commit(String userName, T resource) {
             final AutoUnlockableResource existingItem = repository.get(resource);
-            final AcquiredResource unlockedItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.Unlocked, unlockTimeout, clock);
+            final AcquiredResource unlockedItem = AcquiredResource.createNew(userName, ResourceAcquisitionState.UNLOCKED, unlockTimeout, clock);
             if (existingItem != null) {
                 final AcquiredResource acquiredResource = existingItem.getAcquiredResource();
                 if (!acquiredResource.getUserName().equalsIgnoreCase(userName)) {
-                    return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UnlockFailed, acquiredResource);
+                    return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UNLOCK_FAILED, acquiredResource);
                 }
 
                 existingItem.cancelUnlock();
                 repository.remove(resource);
                 metrics.recordLockReleased();
-                return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UnlockSucceeded, unlockedItem);
+                return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UNLOCK_SUCCEEDED, unlockedItem);
             }
-            return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UnlockFailed, unlockedItem);
+            return new ResourceAcquisitionResponse(ResourceAcquisitionCommandResult.UNLOCK_FAILED, unlockedItem);
         }
     }
 
     private ResourceAcquisitionCommandProcessor<T> createCommandProcessor(ResourceAcquisitionCommand command) {
         return switch (command) {
-            case Lock -> new ResourceLockCommandProcessor();
-            case Unlock -> new ResourceUnlockCommandProcessor();
+            case LOCK -> new ResourceLockCommandProcessor();
+            case UNLOCK -> new ResourceUnlockCommandProcessor();
         };
     }
 

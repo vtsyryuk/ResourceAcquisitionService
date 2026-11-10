@@ -8,7 +8,7 @@ plugins {
 }
 
 group = 'vt.ras'
-version = providers.gradleProperty('releaseVersion').orElse('2.0.0').get()
+version = providers.gradleProperty('releaseVersion').orElse('3.0.0').get()
 
 def configuredJavaVersion = providers.gradleProperty('javaVersion').map { Integer.parseInt(it) }
 def configuredCoverageMinimum = providers.gradleProperty('coverageMinimum').map { new BigDecimal(it) }

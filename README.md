@@ -65,3 +65,7 @@ The repository includes VS Code settings, tasks, and extension recommendations f
 ## Deployment
 
 This repository is a Java library, not a runnable service, so there is no cloud runtime to deploy directly. Publishing the package to GitHub Packages lets consuming applications deploy it from their own pipelines.
+
+## SonarCloud
+
+See [the SonarCloud setup guide](.github/SONARCLOUD.md) for analysis, coverage, activation and quality-gate behavior.

@@ -2,7 +2,7 @@
 sonarqube = "7.5.0.8588"
 jacoco = "0.8.14"
 junit = "6.1.3"
-opentelemetry = "1.67.0"
+opentelemetry = "1.68.0"
 rxjava = "3.1.12"
 
 [libraries]

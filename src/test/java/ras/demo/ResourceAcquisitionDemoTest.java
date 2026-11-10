@@ -1,5 +1,7 @@
 package ras.demo;
 
+import io.reactivex.rxjava3.schedulers.TestScheduler;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,11 +16,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ResourceAcquisitionDemoTest {
     private ResourceAcquisitionDemo demo;
+    private TestScheduler scheduler;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
 
     @BeforeEach
     void start() throws Exception {
-        demo = new ResourceAcquisitionDemo(0, 5_000);
+        scheduler = new TestScheduler();
+        demo = new ResourceAcquisitionDemo(0, 5_000, scheduler);
         demo.start();
     }
 
@@ -58,16 +62,17 @@ class ResourceAcquisitionDemoTest {
 
     @Test
     void automaticallyExpiresAnAcquiredLock() throws Exception {
-        demo.close();
-        demo = new ResourceAcquisitionDemo(0, 100);
-        demo.start();
         assertTrue(command("lock", "alice").contains("LockSucceeded"));
-        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-        while (System.nanoTime() < deadline) {
-            if (command("lock", "bob").contains("LockSucceeded")) return;
-            Thread.sleep(20);
-        }
-        fail("Expired lock was not available for another user");
+        scheduler.advanceTimeBy(4_999, TimeUnit.MILLISECONDS);
+        assertTrue(command("lock", "bob").contains("LockFailed"));
+        scheduler.advanceTimeBy(1, TimeUnit.MILLISECONDS);
+        assertTrue(command("lock", "bob").contains("LockSucceeded"));
+
+        // The new owner receives a full lease measured from reacquisition.
+        scheduler.advanceTimeBy(4_999, TimeUnit.MILLISECONDS);
+        assertTrue(command("lock", "alice").contains("LockFailed"));
+        scheduler.advanceTimeBy(1, TimeUnit.MILLISECONDS);
+        assertTrue(command("lock", "alice").contains("LockSucceeded"));
     }
 
     @Test

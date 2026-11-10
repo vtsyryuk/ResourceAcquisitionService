@@ -55,7 +55,7 @@ The library JAR remains `build/libs/rasjava-2.0.0.jar`. The demo JAR and launche
 
 - HTML: `build/reports/jacoco/test/html/index.html`
 - XML: `build/reports/jacoco/test/jacocoTestReport.xml`
-- HTTP integration tests: `src/test/java/ras/demo/ResourceAcquisitionDemoTest.java`
+- HTTP integration tests: `src/test/java/ras/demo/ResourceAcquisitionDemoTest.java`; expiry uses an RxJava `TestScheduler` to verify just-before/at-expiry behavior without sleeping.
 - Browser scenarios: `tests/e2e/cloud-demo.spec.js`
 
 ## SonarCloud

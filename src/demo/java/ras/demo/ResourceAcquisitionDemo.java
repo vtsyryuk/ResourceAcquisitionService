@@ -2,6 +2,8 @@ package ras.demo;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import io.reactivex.rxjava3.core.Scheduler;
+import io.reactivex.rxjava3.schedulers.Schedulers;
 import ras.ResourceAcquisitionCommand;
 import ras.SimpleResourceAcquisitionService;
 import ras.TimeSpan;
@@ -29,11 +31,15 @@ public final class ResourceAcquisitionDemo implements AutoCloseable {
     private final SimpleResourceAcquisitionService<String> service;
 
     public ResourceAcquisitionDemo(int port, long ttlMillis) throws IOException {
+        this(port, ttlMillis, Schedulers.computation());
+    }
+
+    ResourceAcquisitionDemo(int port, long ttlMillis, Scheduler scheduler) throws IOException {
         if (ttlMillis < 1 || ttlMillis > 60_000) {
             throw new IllegalArgumentException("TTL must be between 1 and 60000 milliseconds");
         }
         server = HttpServer.create(new InetSocketAddress(port), 32);
-        service = new SimpleResourceAcquisitionService<>(new TimeSpan(ttlMillis, TimeUnit.MILLISECONDS));
+        service = new SimpleResourceAcquisitionService<>(scheduler, new TimeSpan(ttlMillis, TimeUnit.MILLISECONDS));
         server.setExecutor(executor);
         server.createContext("/", this::handle);
     }

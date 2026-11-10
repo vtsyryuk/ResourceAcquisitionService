@@ -45,7 +45,7 @@ Dependency versions live in [gradle/libs.versions.toml](gradle/libs.versions.tom
 ./gradlew clean check installDist
 ```
 
-The library JAR remains `build/libs/rasjava-2.0.0.jar`. The demo JAR and launcher are included only in the runnable distribution at `build/install/ResourceAcquisitionService/`.
+The library JAR is `build/libs/rasjava-3.0.0.jar`. The demo JAR and launcher are included only in the runnable distribution at `build/install/ResourceAcquisitionService/`.
 
 ## Test and Coverage
 
@@ -67,13 +67,21 @@ GitHub Actions owns analysis and coverage reporting; Automatic Analysis is disab
 ```java
 try (var service = new SimpleResourceAcquisitionService<String>(
         new TimeSpan(10, java.util.concurrent.TimeUnit.SECONDS))) {
-    var acquired = service.commit(ResourceAcquisitionCommand.Lock, "alice", "feed/prices");
-    var competing = service.commit(ResourceAcquisitionCommand.Lock, "bob", "feed/prices");
-    var released = service.commit(ResourceAcquisitionCommand.Unlock, "alice", "feed/prices");
+    var acquired = service.commit(ResourceAcquisitionCommand.LOCK, "alice", "feed/prices");
+    var competing = service.commit(ResourceAcquisitionCommand.LOCK, "bob", "feed/prices");
+    var released = service.commit(ResourceAcquisitionCommand.UNLOCK, "alice", "feed/prices");
 }
 ```
 
 Import the classes from `ras`. The first call succeeds, the competing owner cannot acquire the same resource, and the current owner can release it. Otherwise the configured timeout releases it automatically.
+
+### Migrating to 3.0
+
+Java enum identifiers now use uppercase names: `LOCK`, `UNLOCK`, `LOCK_SUCCEEDED`, `LOCK_FAILED`, `UNLOCK_SUCCEEDED`, `UNLOCK_FAILED`, `LOCKED` and `UNLOCKED`. Update Java references and switch cases when upgrading from 2.x. The default library version is 3.0.0 because these identifier changes require recompilation.
+
+Each enum retains its original external value through `getValue()` and `toString()`: for example, `LOCK.getValue()` returns `"Lock"`. Metric labels, demo JSON and resource display text keep their previous values. Java's `Enum.name()` and `Enum.valueOf()` use the new uppercase identifiers; use `getValue()` for the stable external string.
+
+`TimeSpan` is now a record with `interval()` and `unit()` accessors; its constructor, `getInterval()`, `getUnit()` and `Default` remain available.
 
 ## Demo Deployment
 
@@ -132,7 +140,7 @@ Use the constructor accepting an OpenTelemetry `Meter` to connect to a consuming
 GitHub Packages publishing runs when a release is created or through manual **Publish** dispatch:
 
 ```bash
-./gradlew publishJarToMaven -PreleaseVersion=2.0.0
+./gradlew publishJarToMaven -PreleaseVersion=3.0.0
 ```
 
 Provide GitHub Packages credentials through Gradle `gpr.user`/`gpr.key` properties or `GITHUB_ACTOR`/`GITHUB_TOKEN`. The published library, sources and Javadoc stay separate from the runnable demo.

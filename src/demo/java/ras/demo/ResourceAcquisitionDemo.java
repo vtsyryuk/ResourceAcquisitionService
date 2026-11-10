@@ -84,15 +84,15 @@ public final class ResourceAcquisitionDemo implements AutoCloseable {
                 throw new IllegalArgumentException("Use alice or bob and a resource label of up to 64 lowercase letters, digits, slashes, underscores or dashes");
             }
             ResourceAcquisitionCommand action = switch (query.getOrDefault("action", "")) {
-                case "lock" -> ResourceAcquisitionCommand.Lock;
-                case "unlock" -> ResourceAcquisitionCommand.Unlock;
+                case "lock" -> ResourceAcquisitionCommand.LOCK;
+                case "unlock" -> ResourceAcquisitionCommand.UNLOCK;
                 default -> throw new IllegalArgumentException("Use action=lock or action=unlock");
             };
             var result = service.commit(action, user, key);
             // All interpolated strings come from enums or the bounded allowlists above.
             String body = "{\"result\":\"%s\",\"owner\":\"%s\",\"key\":\"%s\",\"state\":\"%s\"}"
-                    .formatted(result.getCommitResult().name(), result.getResource().getUserName(),
-                            key, result.getResource().getState().name());
+                    .formatted(result.getCommitResult().getValue(), result.getResource().getUserName(),
+                            key, result.getResource().getState().getValue());
             send(exchange, 200, "application/json", body);
         } catch (IllegalArgumentException invalid) {
             send(exchange, 400, "text/plain", invalid.getMessage());

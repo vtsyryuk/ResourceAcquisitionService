@@ -73,7 +73,7 @@ public final class AcquiredResource implements Comparable<AcquiredResource> {
         String printedTimestamp = DateTimeFormatter.ISO_OFFSET_DATE_TIME
                 .withZone(ZoneOffset.UTC)
                 .format(Instant.ofEpochMilli(instant));
-        return String.format("%s %s at %s", userName, state.name(), printedTimestamp);
+        return String.format("%s %s at %s", userName, state.getValue(), printedTimestamp);
     }
 
     @Override

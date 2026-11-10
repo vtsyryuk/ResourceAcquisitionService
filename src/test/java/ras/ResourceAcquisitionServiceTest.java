@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
+import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
@@ -229,9 +230,26 @@ class ResourceAcquisitionServiceTest {
                 meterProvider.get(ResourceAcquisitionMetrics.METER_NAME));
 
         service.commit(ResourceAcquisitionCommand.LOCK, "User1", "Item1");
+        service.commit(ResourceAcquisitionCommand.LOCK, "User2", "Item1");
+        service.commit(ResourceAcquisitionCommand.UNLOCK, "User2", "Item1");
         service.commit(ResourceAcquisitionCommand.UNLOCK, "User1", "Item1");
 
-        Set<String> metricNames = metricReader.collectAllMetrics().stream()
+        var metrics = metricReader.collectAllMetrics();
+        Set<String> commandValues = metrics.stream()
+                .filter(metric -> metric.getName().equals(ResourceAcquisitionMetrics.COMMANDS_METRIC_NAME))
+                .flatMap(metric -> metric.getLongSumData().getPoints().stream())
+                .map(point -> point.getAttributes().get(AttributeKey.stringKey("command")))
+                .collect(Collectors.toSet());
+        Set<String> resultValues = metrics.stream()
+                .filter(metric -> metric.getName().equals(ResourceAcquisitionMetrics.RESULTS_METRIC_NAME))
+                .flatMap(metric -> metric.getLongSumData().getPoints().stream())
+                .map(point -> point.getAttributes().get(AttributeKey.stringKey("result")))
+                .collect(Collectors.toSet());
+        assertEquals(Set.of("Lock", "Unlock"), commandValues);
+        assertEquals(Set.of("LockSucceeded", "LockFailed", "UnlockSucceeded", "UnlockFailed"), resultValues);
+        service.close();
+
+        Set<String> metricNames = metrics.stream()
                 .map(MetricData::getName)
                 .collect(Collectors.toSet());
         meterProvider.close();

@@ -1,0 +1,60 @@
+name: Demo E2E
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+permissions: {}
+jobs:
+  demo-ui:
+    name: Verify demo ownership and expiry in Chromium
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:8080
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked browser tests
+        run: npm ci --ignore-scripts --no-audit --fund=false
+      - name: Install Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Build deployable demo container
+        run: docker build --tag resource-acquisition-demo:ci .
+      - name: Start the actual demo container
+        run: |
+          docker run --detach --name acquisition-demo --publish 8080:8080 resource-acquisition-demo:ci
+          deadline=$((SECONDS + 120))
+          until curl --fail --silent --show-error --max-time 5 "$PLAYWRIGHT_BASE_URL/health" | jq -e '.status == "ok"'; do
+            if (( SECONDS >= deadline )); then
+              echo '::error::The demo container did not become healthy within two minutes.'
+              exit 1
+            fi
+            sleep 2
+          done
+      - name: Run browser E2E
+        run: npm run test:e2e
+      - name: Show demo container logs
+        if: always()
+        run: |
+          if docker container inspect acquisition-demo > /dev/null 2>&1; then
+            docker logs acquisition-demo
+          fi
+      - name: Upload browser report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: browser-e2e-report
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

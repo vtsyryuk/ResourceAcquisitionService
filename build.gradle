@@ -3,6 +3,7 @@ plugins {
     id 'eclipse'
     id 'jacoco'
     id 'maven-publish'
+    alias(libs.plugins.sonarqube)
 }
 
 group = 'vt.ras'
@@ -155,5 +156,16 @@ publishing {
                         .get()
             }
         }
+    }
+}
+
+sonar {
+    properties {
+        property 'sonar.projectKey', providers.environmentVariable('SONAR_PROJECT_KEY')
+                .orElse('vtsyryuk_ResourceAcquisitionService').get()
+        property 'sonar.organization', providers.environmentVariable('SONAR_ORGANIZATION')
+                .orElse('vtsyryuk').get()
+        property 'sonar.coverage.jacoco.xmlReportPaths',
+                layout.buildDirectory.file('reports/jacoco/test/jacocoTestReport.xml').get().asFile.path
     }
 }

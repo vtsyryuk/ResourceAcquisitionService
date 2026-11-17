@@ -1,5 +1,5 @@
 [versions]
-sonarqube = "7.5.0.8588"
+sonarqube = "7.6.0.18749"
 jacoco = "0.8.14"
 junit = "6.1.3"
 opentelemetry = "1.68.0"
